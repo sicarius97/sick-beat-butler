@@ -1,13 +1,6 @@
-//! Requires the 'framework' feature flag be enabled in your project's
+//! Requires the 'framework' feature flag be enabled for serenity in your project's
 //! `Cargo.toml`.
-//!
-//! This can be enabled by specifying the feature in the dependency section:
-//!
-//! ```toml
-//! [dependencies.serenity]
-//! git = "https://github.com/serenity-rs/serenity.git"
-//! features = ["framework", "standard_framework"]
-//! ```
+
 mod commands;
 
 use std::{
