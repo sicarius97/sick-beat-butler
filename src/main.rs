@@ -32,6 +32,7 @@ use tracing::{error, info};
 
 use crate::commands::owner::*;
 use crate::commands::music::*;
+use crate::commands::stonks::*;
 
 pub struct ShardManagerContainer;
 
@@ -54,7 +55,7 @@ impl EventHandler for Handler {
 
 #[group]
 #[commands(
-    join, mute, unmute, deafen, undeafen, stop, leave, queue, ping, skip, quit
+    join, bust, stock, mute, unmute, deafen, undeafen, stop, leave, queue, ping, skip, quit
 )]
 struct General;
 
