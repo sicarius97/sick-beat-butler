@@ -12,19 +12,15 @@ use serenity::{
 use chrono::prelude::*;
 use chrono::Duration;
 use serde::{Deserialize};
-use std::env;
+use std::{env};
 use crate::commands::music::check_msg;
 use reqwest::header::{HeaderValue, USER_AGENT, CONTENT_TYPE, CONTENT_LENGTH, HeaderMap};
+use tracing::info;
 
 #[derive(Debug, Deserialize)]
 struct TickerResult {
     o: f64,
     c: f64,
-}
-#[derive(Debug, Deserialize)]
-struct FullTickerResponse {
-    ticker: String,
-    results: Vec<TickerResult>,
 }
 
 fn construct_headers() -> HeaderMap {
@@ -77,19 +73,20 @@ async fn stock(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     let yesterday_string: String = format!("{}-{}-{}", yesterday.year().to_string(), yesterday.month().to_string(), yesterday.day().to_string());
 
-    let query_url: String = format!("https://api.polygon.io/v2/aggs/ticker/{}/range/1/day/{}/{}?adjusted=true&sort=asc&limit=120", ticker.to_ascii_uppercase(), yesterday.timestamp_millis(), yesterday.timestamp_millis()).into();
+    info!("{}", &yesterday_string);
+
+    let query_url: String = format!("https://finnhub.io/api/v1/quote?symbol={}&token={}", ticker.to_ascii_uppercase(), env::var("FINNHUB_TOKEN")?).into();
 
     let client = reqwest::Client::new();
     let ticker_data = client
         .get(query_url)
         .headers(construct_headers())
-        .bearer_auth(env::var("STOCK_TOKEN")?)
         .send()
-        .await?.json::<FullTickerResponse>().await.unwrap();
+        .await?.json::<TickerResult>().await.unwrap();
 
-    let change = percentage_change(ticker_data.results[0].o.clone(), ticker_data.results[0].c.clone());
+    let change = percentage_change(ticker_data.o.clone(), ticker_data.c.clone());
 
-    let ticker_message = format!("On {} the ticker {} had an open of ${} and a close of ${}\nfor a {} of {}%", yesterday_string, ticker_data.ticker, ticker_data.results[0].o, ticker_data.results[0].c, change.0, change.1);
+    let ticker_message = format!("On {} the ticker {} had an open of ${} and a close of ${}\nfor a {} of {}%", yesterday_string, ticker.to_ascii_uppercase(), ticker_data.o, ticker_data.c, change.0, change.1);
 
     
     check_msg(
