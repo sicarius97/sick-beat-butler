@@ -3,6 +3,7 @@ use songbird::input::{
     Codec, Container, Input, Metadata, Reader,
 };
 use std::process::{Child, Command, Stdio};
+use tokio::process::Child as TokioChild;
 
 pub async fn ffmpeg(mut source: Child, metadata: Metadata, pre_args: &[&str]) -> Result<Input> {
     let ffmpeg_args = [

@@ -1,6 +1,6 @@
 use crate::{
     types::{QueryType},
-    sources::ffmpeg::ffmpeg,
+    // sources::ffmpeg::ffmpeg,
 };
 use serde_json::Value;
 use serenity::async_trait;
@@ -15,9 +15,11 @@ use std::{
     process::{Child, Stdio},
     time::Duration,
 };
-use tokio::{process::Command as TokioCommand, task};
+use tokio::{process::Command as TokioCommand, task, process::Child as TokioChild};
+use tokio::io::AsyncReadExt;
 
 const NEWLINE_BYTE: u8 = 0xA;
+
 
 pub struct YouTube {}
 
@@ -95,9 +97,9 @@ where
 
         if let Some(time) = time {
             let ts = format!("{:.3}", time.as_secs_f64());
-            ffmpeg(yt, metadata, &["-ss", &ts]).await
+            // ffmpeg(yt, metadata, &["-ss", &ts]).await
         } else {
-            ffmpeg(yt, metadata, &[]).await
+            // ffmpeg(yt, metadata, &[]).await
         }
     }
 
@@ -108,13 +110,15 @@ where
     }
 }
 
-async fn ytdl(uri: &str) -> Result<(Child, Metadata), SongbirdError> {
+
+
+pub async fn ytdl(uri: &str) -> Result<Child, SongbirdError> {
     let ytdl_args = [
         "-j",            // print JSON information for video for metadata
         "-q",            // don't print progress logs (this messes with -o -)
         "--no-simulate", // ensure video is downloaded regardless of printing
         "-f",
-        "webm[abr>0]/bestaudio/best", // select best quality audio-only
+        "aac[abr>0]/bestaudio/best", // select best quality audio-only
         "-R",
         "infinite",        // infinite number of download retries
         "--no-playlist",   // only download the video if URL also has playlist info
@@ -124,24 +128,26 @@ async fn ytdl(uri: &str) -> Result<(Child, Metadata), SongbirdError> {
         "-", // stream data to stdout
     ];
 
-    let mut yt = Command::new("yt-dlp")
+    let yt = Command::new("yt-dlp")
         .args(&ytdl_args)
         .stdin(Stdio::null())
-        .stderr(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .stdout(Stdio::inherit())
         .spawn()?;
 
     // track info json (for metadata) is piped to stderr by design choice of yt-dlp
     // the actual track is streamed to stdout
-    let stderr = yt.stderr.take();
+    /*
+    let mut stderr = yt.stderr.take();
     let (returned_stderr, value) = task::spawn_blocking(move || {
-        let mut s = stderr.unwrap();
+        let mut s = stderr.take().unwrap();
         let out: SongbirdResult<Value> = {
-            let mut o_vec = vec![];
-            let mut serde_read = BufReader::new(s.by_ref());
+            let o_vec = vec![];
+            let mut serde_read = Vec::new();
+            s.read(&mut serde_read);
 
-            if let Ok(len) = serde_read.read_until(NEWLINE_BYTE, &mut o_vec) {
-                serde_json::from_slice(&o_vec[..len]).map_err(|err| SongbirdError::Json {
+            if serde_read.len() > 0 {
+                serde_json::from_slice(&o_vec[..serde_read.len()]).map_err(|err| SongbirdError::Json {
                     error: err,
                     parsed_text: std::str::from_utf8(&o_vec).unwrap_or_default().to_string(),
                 })
@@ -158,7 +164,9 @@ async fn ytdl(uri: &str) -> Result<(Child, Metadata), SongbirdError> {
     let metadata = Metadata::from_ytdl_output(value?);
     yt.stderr = Some(returned_stderr);
 
-    Ok((yt, metadata))
+    */
+
+    Ok(yt)
 }
 
 async fn _ytdl_metadata(uri: &str) -> SongbirdResult<Metadata> {
