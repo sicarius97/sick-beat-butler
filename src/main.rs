@@ -7,26 +7,20 @@ mod types;
 
 use std::{
     env,
-    sync::{
-        Arc,
-    },
+    sync::Arc, collections::HashSet,
 };
 
 use serenity::{
     async_trait,
     client::{Client, Context, EventHandler},
     framework::{
-        standard::{
-            macros::{group},
-        },
+        standard::macros::group,
         StandardFramework,
     },
-    model::{gateway::Ready},
+    model::gateway::Ready,
 };
 
-use songbird::{
-    SerenityInit,
-};
+use songbird::SerenityInit;
 use serenity::http::Http;
 use serenity::client::bridge::gateway::ShardManager;
 use serenity::model::event::ResumedEvent;
@@ -80,7 +74,7 @@ async fn main() {
     let http = Http::new(&token);
 
     // We will fetch your bot's owners and id
-    let (owners, _bot_id) = match http.get_current_application_info().await {
+    let (_owners, _bot_id) = match http.get_current_application_info().await {
         Ok(info) => {
             let mut owners = HashSet::new();
             owners.insert(info.owner.id);
@@ -97,7 +91,9 @@ async fn main() {
     // Set gateway intents
     let intents = GatewayIntents::GUILD_MESSAGES
     | GatewayIntents::DIRECT_MESSAGES
-    | GatewayIntents::MESSAGE_CONTENT;
+    | GatewayIntents::MESSAGE_CONTENT
+    | GatewayIntents::GUILDS
+    | GatewayIntents::GUILD_VOICE_STATES;
 
     let mut client = Client::builder(&token, intents)
         .framework(framework)

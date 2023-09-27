@@ -1,18 +1,16 @@
 use serenity::{
-    client::{Context},
-    framework::{
-        standard::{
-            macros::{command},
+    client::Context,
+    framework::standard::{
+            macros::command,
             Args,
             CommandResult,
         },
-    },
-    model::{channel::Message},
+    model::channel::Message,
 };
 use chrono::prelude::*;
 use chrono::Duration;
-use serde::{Deserialize};
-use std::{env};
+use serde::Deserialize;
+use std::env;
 use crate::commands::music::check_msg;
 use reqwest::header::{HeaderValue, USER_AGENT, CONTENT_TYPE, CONTENT_LENGTH, HeaderMap};
 use tracing::info;
