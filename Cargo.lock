@@ -211,6 +211,7 @@ dependencies = [
  "libc",
  "num-integer",
  "num-traits 0.2.15",
+ "serde",
  "time 0.1.44",
  "winapi",
 ]
@@ -262,9 +263,9 @@ dependencies = [
 
 [[package]]
 name = "command_attr"
-version = "0.4.1"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d999d4e7731150ee14aee8f619c7a9aa9a4385bca0606c4fa95aa2f36a05d9a"
+checksum = "07b787d19b9806dd4c9c34b2b4147d1a61d6120d93ee289521ab9b0294d198e4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1777,9 +1778,9 @@ dependencies = [
 
 [[package]]
 name = "serenity"
-version = "0.11.4"
+version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d1a6cef5e72d4e5787c96413ec0a45f9317c59f0099e2ff2038b73cb352fefd"
+checksum = "d007dc45584ecc47e791f2a9a7cf17bf98ac386728106f111159c846d624be3f"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -1787,6 +1788,7 @@ dependencies = [
  "bitflags",
  "bytes",
  "cfg-if",
+ "chrono",
  "command_attr",
  "dashmap",
  "flate2",
@@ -1901,9 +1903,9 @@ dependencies = [
 
 [[package]]
 name = "songbird"
-version = "0.3.0"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4c965f6625a2653e0733abfe217679562eb8c4787f000f4f13047541a444217"
+checksum = "32f686a0fd771939de1da3e43cee45169fafe1595770b94680572cf18bdef288"
 dependencies = [
  "async-trait",
  "async-tungstenite",

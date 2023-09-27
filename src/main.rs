@@ -89,11 +89,7 @@ async fn main() {
         StandardFramework::new().configure(|c| c.prefix("$")).group(&GENERAL_GROUP);
 
     // Set gateway intents
-    let intents = GatewayIntents::GUILD_MESSAGES
-    | GatewayIntents::DIRECT_MESSAGES
-    | GatewayIntents::MESSAGE_CONTENT
-    | GatewayIntents::GUILDS
-    | GatewayIntents::GUILD_VOICE_STATES;
+    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
 
     let mut client = Client::builder(&token, intents)
         .framework(framework)

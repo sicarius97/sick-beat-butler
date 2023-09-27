@@ -26,12 +26,11 @@ features = ["symphonia-all"]
 
 
 [dependencies.serenity]
-version = "0.11"
-default-features = false
+version = "0.11.6"
 features = ["cache", "framework", "standard_framework", "rustls_backend", "collector", "client", "gateway", "model", "rustls_backend", "unstable_discord_api", "voice"]
 
 [dependencies.songbird]
-version = "0.3"
+version = "0.3.2"
 features = ["builtin-queue"]
 
 [dependencies.tokio]

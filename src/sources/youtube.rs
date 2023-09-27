@@ -1,5 +1,5 @@
 use crate::{
-    types::{QueryType},
+    types::QueryType,
     // sources::ffmpeg::ffmpeg,
 };
 use serde_json::Value;
@@ -137,7 +137,6 @@ pub async fn ytdl(uri: &str) -> Result<Child, SongbirdError> {
 
     // track info json (for metadata) is piped to stderr by design choice of yt-dlp
     // the actual track is streamed to stdout
-    /*
     let mut stderr = yt.stderr.take();
     let (returned_stderr, value) = task::spawn_blocking(move || {
         let mut s = stderr.take().unwrap();
@@ -164,7 +163,6 @@ pub async fn ytdl(uri: &str) -> Result<Child, SongbirdError> {
     let metadata = Metadata::from_ytdl_output(value?);
     yt.stderr = Some(returned_stderr);
 
-    */
 
     Ok(yt)
 }
