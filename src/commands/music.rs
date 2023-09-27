@@ -12,7 +12,8 @@ use serenity::{
             CommandResult,
         },
     http::Http,
-    model::{channel::Message, prelude::{ChannelId, Mentionable}},
+    prelude::Mentionable,
+    model::{channel::Message, prelude::ChannelId},
     Result as SerenityResult
 };
 
