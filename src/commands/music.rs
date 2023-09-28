@@ -99,16 +99,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
                 .say(&ctx.http, &format!("Joined {}", connect_to.mention()))
                 .await,
         );
-
-        /* 
-        handle.add_global_event(
-            Event::Track(TrackEvent::End),
-            TrackEndNotifier {
-                chan_id,
-                http: send_http,
-            },
-        );
-        */
     } else {
         check_msg(
             msg.channel_id
@@ -121,7 +111,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
 }
 
 
-/* 
+
 struct TrackEndNotifier {
     chan_id: ChannelId,
     http: Arc<Http>,
@@ -140,7 +130,7 @@ impl VoiceEventHandler for TrackEndNotifier {
         None
     }
 }
-*/
+
 
 #[command]
 #[only_in(guilds)]
@@ -401,27 +391,38 @@ async fn bust(ctx: &Context, msg: &Message) -> CommandResult {
 #[command]
 #[only_in(guilds)]
 async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
-    let url = match args.single::<String>() {
-        Ok(url) => url,
-        Err(_) => {
+    println!("{:?}", &args.message());
+
+    let mut uri: String = String::new();
+    
+    if args.is_empty() {
+        check_msg(msg.channel_id.say(&ctx.http, "No query provided").await);
+        return Ok(());
+    } else if args.len() > 1 {
+        uri = args.message().to_string();
+    } else {
+        uri = match args.single::<String>() {
+            Ok(url) => url,
+            Err(_) => {
+                check_msg(
+                    msg.channel_id
+                        .say(&ctx.http, "Must provide a URL to a video or audio")
+                        .await,
+                );
+    
+                return Ok(());
+            },
+        };
+
+        if !uri.starts_with("http") {
             check_msg(
                 msg.channel_id
-                    .say(&ctx.http, "Must provide a URL to a video or audio")
+                    .say(&ctx.http, "Must provide a valid URL")
                     .await,
             );
-
+    
             return Ok(());
-        },
-    };
-
-    if !url.starts_with("http") {
-        check_msg(
-            msg.channel_id
-                .say(&ctx.http, "Must provide a valid URL")
-                .await,
-        );
-
-        return Ok(());
+        }
     }
 
     let guild = msg.guild(&ctx.cache).unwrap();
@@ -437,18 +438,44 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
         // Here, we use lazy restartable sources to make sure that we don't pay
         // for decoding, playback on tracks which aren't actually live yet.
-        let source = match Restartable::ytdl(url, true).await {
-            Ok(source) => source,
-            Err(why) => {
-                println!("Err starting source: {:?}", why);
+        let source: Restartable;
+        
+        if args.len() > 1 {
+            source = match Restartable::ytdl_search(uri, true).await {
+                Ok(source) => source,
+                Err(why) => {
+                    println!("Err starting source: {:?}", why);
+    
+                    check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg").await);
+    
+                    return Ok(());
+                },
+            };
+        } else {
+            source = match Restartable::ytdl(uri, true).await {
+                Ok(source) => source,
+                Err(why) => {
+                    println!("Err starting source: {:?}", why);
+    
+                    check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg").await);
+    
+                    return Ok(());
+                },
+            };
+        }
+        
 
-                check_msg(msg.channel_id.say(&ctx.http, "Error sourcing ffmpeg").await);
+        let song = handler.enqueue_source(source.into());
 
-                return Ok(());
+        let send_http = ctx.http.clone();
+
+        let _ = song.add_event(
+            Event::Track(TrackEvent::End),
+            SongEndNotifier {
+                chan_id: msg.channel_id,
+                http: send_http,
             },
-        };
-
-        handler.enqueue_source(source.into());
+        );
 
         check_msg(
             msg.channel_id

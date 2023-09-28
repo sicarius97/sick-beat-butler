@@ -1,6 +1,6 @@
 use crate::{
     types::QueryType,
-    // sources::ffmpeg::ffmpeg,
+    sources::ffmpeg::ffmpeg,
 };
 use serde_json::Value;
 use serenity::async_trait;
@@ -97,9 +97,9 @@ where
 
         if let Some(time) = time {
             let ts = format!("{:.3}", time.as_secs_f64());
-            // ffmpeg(yt, metadata, &["-ss", &ts]).await
+            ffmpeg(yt, metadata, &["-ss", &ts]).await
         } else {
-            // ffmpeg(yt, metadata, &[]).await
+            ffmpeg(yt, metadata, &[]).await
         }
     }
 
