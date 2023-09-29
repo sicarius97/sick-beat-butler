@@ -11,7 +11,7 @@ use chrono::prelude::*;
 use chrono::Duration;
 use serde::Deserialize;
 use std::env;
-use crate::commands::music::check_msg;
+use crate::utils::check_msg;
 use reqwest::header::{HeaderValue, USER_AGENT, CONTENT_TYPE, CONTENT_LENGTH, HeaderMap};
 use tracing::info;
 

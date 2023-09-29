@@ -3,6 +3,8 @@ use std::{
     time::Duration,
 };
 
+use crate::utils::check_msg;
+
 use serenity::{
     async_trait,
     client::Context,
@@ -14,7 +16,6 @@ use serenity::{
     http::Http,
     prelude::Mentionable,
     model::{channel::Message, prelude::ChannelId},
-    Result as SerenityResult
 };
 
 use songbird::{
@@ -27,6 +28,8 @@ use songbird::{
     EventHandler as VoiceEventHandler,
     TrackEvent,
 };
+
+use super::handlers::*;
 
 #[command]
 async fn deafen(ctx: &Context, msg: &Message) -> CommandResult {
@@ -108,27 +111,6 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
     }
 
     Ok(())
-}
-
-
-
-struct TrackEndNotifier {
-    chan_id: ChannelId,
-    http: Arc<Http>,
-}
-#[async_trait]
-impl VoiceEventHandler for TrackEndNotifier {
-    async fn act(&self, ctx: &EventContext<'_>) -> Option<Event> {
-        if let EventContext::Track(track_list) = ctx {
-            check_msg(
-                self.chan_id
-                    .say(&self.http, &format!("Tracks ended: {}.", track_list.len()))
-                    .await,
-            );
-        }
-
-        None
-    }
 }
 
 
@@ -470,8 +452,8 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         let send_http = ctx.http.clone();
 
         let _ = song.add_event(
-            Event::Track(TrackEvent::End),
-            SongEndNotifier {
+            Event::Track(TrackEvent::Play),
+            TrackPlayNotifier {
                 chan_id: msg.channel_id,
                 http: send_http,
             },
@@ -624,9 +606,4 @@ async fn unmute(ctx: &Context, msg: &Message) -> CommandResult {
     Ok(())
 }
 
-/// Checks that a message successfully sent; if not, then logs why to stdout.
-pub fn check_msg(result: SerenityResult<Message>) {
-    if let Err(why) = result {
-        println!("Error sending message: {:?}", why);
-    }
-}
+
