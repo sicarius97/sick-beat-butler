@@ -94,7 +94,7 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
         .expect("Songbird Voice client placed in at initialisation.")
         .clone();
 
-    let (_handle_lock, success) = manager.join(guild_id, connect_to).await;
+    let (handle_lock, success) = manager.join(guild_id, connect_to).await;
 
     if let Ok(_channel) = success {
         check_msg(
@@ -102,6 +102,20 @@ async fn join(ctx: &Context, msg: &Message) -> CommandResult {
                 .say(&ctx.http, &format!("Joined {}", connect_to.mention()))
                 .await,
         );
+        let mut handler = handle_lock.lock().await;
+
+        let send_http = ctx.http.clone();
+        let send_msg = msg.clone();
+
+        handler.add_global_event(
+            Event::Track(TrackEvent::Play),
+            TrackPlayNotifier {
+                chan_id: msg.channel_id,
+                msg: send_msg,
+                http: send_http,
+            },
+        );
+
     } else {
         check_msg(
             msg.channel_id
@@ -447,17 +461,7 @@ async fn queue(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         }
         
 
-        let song = handler.enqueue_source(source.into());
-
-        let send_http = ctx.http.clone();
-
-        let _ = song.add_event(
-            Event::Track(TrackEvent::Play),
-            TrackPlayNotifier {
-                chan_id: msg.channel_id,
-                http: send_http,
-            },
-        );
+        handler.enqueue_source(source.into());
 
         check_msg(
             msg.channel_id
