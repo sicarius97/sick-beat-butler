@@ -2,36 +2,37 @@
 //! `Cargo.toml`.
 
 mod commands;
+mod utils;
+mod sources;
+mod types;
+mod error;
 
 use std::{
     env,
-    sync::{
-        Arc,
-    },
+    sync::Arc, collections::HashSet,
 };
 
 use serenity::{
     async_trait,
     client::{Client, Context, EventHandler},
     framework::{
-        standard::{
-            macros::{group},
-        },
+        standard::macros::group,
         StandardFramework,
     },
-    model::{gateway::Ready},
+    model::gateway::Ready,
 };
 
-use songbird::{
-    SerenityInit,
-};
+use songbird::SerenityInit;
+use serenity::http::Http;
 use serenity::client::bridge::gateway::ShardManager;
 use serenity::model::event::ResumedEvent;
 use serenity::prelude::*;
 use tracing::{error, info};
 
 use crate::commands::owner::*;
-use crate::commands::music::*;
+use crate::commands::music::queue::*;
+use crate::commands::music::resume::*;
+use crate::commands::music::pause::*;
 use crate::commands::stonks::*;
 
 pub struct ShardManagerContainer;
@@ -55,7 +56,8 @@ impl EventHandler for Handler {
 
 #[group]
 #[commands(
-    join, bust, stock, mute, unmute, deafen, undeafen, stop, leave, queue, ping, skip, quit
+    join, bust, stock, mute, unmute, deafen, undeafen, stop, leave, queue, ping, skip, quit,
+    pause, resume
 )]
 struct General;
 
@@ -72,14 +74,32 @@ async fn main() {
     tracing_subscriber::fmt::init();
 
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
+    let app_id: u64 = env::var("DISCORD_APP_ID").expect("Expected a app id in the environment").parse().unwrap();
+
+    let http = Http::new(&token);
+
+    // We will fetch your bot's owners and id
+    let (_owners, _bot_id) = match http.get_current_application_info().await {
+        Ok(info) => {
+            let mut owners = HashSet::new();
+            owners.insert(info.owner.id);
+
+            (owners, info.id)
+        },
+        Err(why) => panic!("Could not access application info: {:?}", why),
+    };
 
     // Create the framework
     let framework =
         StandardFramework::new().configure(|c| c.prefix("$")).group(&GENERAL_GROUP);
 
-    let mut client = Client::builder(&token)
+    // Set gateway intents
+    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
+
+    let mut client = Client::builder(&token, intents)
         .framework(framework)
         .event_handler(Handler)
+        .application_id(app_id)
         .register_songbird()
         .await
         .expect("Err creating client");
