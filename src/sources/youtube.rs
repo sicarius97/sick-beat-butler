@@ -15,17 +15,15 @@ use std::{
     process::{Child, Stdio},
     time::Duration,
 };
-use tokio::{process::Command as TokioCommand, task, process::Child as TokioChild};
-use tokio::io::AsyncReadExt;
+use tokio::{process::Command as TokioCommand, task};
 
 const NEWLINE_BYTE: u8 = 0xA;
-
 
 pub struct YouTube {}
 
 impl YouTube {
     pub fn extract(query: &str) -> Option<QueryType> {
-        if query.contains("playlist?list=") {
+        if query.contains("list=") {
             Some(QueryType::PlaylistLink(query.to_string()))
         } else {
             Some(QueryType::VideoLink(query.to_string()))
@@ -60,23 +58,23 @@ impl YouTubeRestartable {
             .spawn()
             .unwrap();
 
-        if let Some(stdout) = &mut child.stdout {
-            let reader = BufReader::new(stdout);
+        let Some(stdout) = &mut child.stdout else {
+            return None;
+        };
 
-            let lines = reader.lines().flatten().map(|line| {
-                let entry: Value = serde_json::from_str(&line).unwrap();
-                entry
-                    .get("webpage_url")
-                    .unwrap()
-                    .as_str()
-                    .unwrap()
-                    .to_string()
-            });
+        let reader = BufReader::new(stdout);
 
-            Some(lines.collect())
-        } else {
-            None
-        }
+        let lines = reader.lines().flatten().map(|line| {
+            let entry: Value = serde_json::from_str(&line).unwrap();
+            entry
+                .get("webpage_url")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                .to_string()
+        });
+
+        Some(lines.collect())
     }
 }
 
@@ -95,12 +93,12 @@ where
     async fn call_restart(&mut self, time: Option<Duration>) -> SongbirdResult<Input> {
         let (yt, metadata) = ytdl(self.uri.as_ref()).await?;
 
-        if let Some(time) = time {
-            let ts = format!("{:.3}", time.as_secs_f64());
-            ffmpeg(yt, metadata, &["-ss", &ts]).await
-        } else {
-            ffmpeg(yt, metadata, &[]).await
-        }
+        let Some(time) = time else {
+            return ffmpeg(yt, metadata, &[]).await;
+        };
+
+        let ts = format!("{:.3}", time.as_secs_f64());
+        ffmpeg(yt, metadata, &["-ss", &ts]).await
     }
 
     async fn lazy_init(&mut self) -> SongbirdResult<(Option<Metadata>, Codec, Container)> {
@@ -110,43 +108,41 @@ where
     }
 }
 
-
-
-pub async fn ytdl(uri: &str) -> Result<Child, SongbirdError> {
+async fn ytdl(uri: &str) -> Result<(Child, Metadata), SongbirdError> {
     let ytdl_args = [
         "-j",            // print JSON information for video for metadata
         "-q",            // don't print progress logs (this messes with -o -)
         "--no-simulate", // ensure video is downloaded regardless of printing
         "-f",
-        "aac[abr>0]/bestaudio/best", // select best quality audio-only
+        "webm[abr>0]/bestaudio/best", // select best quality audio-only
         "-R",
         "infinite",        // infinite number of download retries
         "--no-playlist",   // only download the video if URL also has playlist info
         "--ignore-config", // disable all configuration files for a yt-dlp run
+        "--no-warnings",   // don't print out warnings
         uri,
         "-o",
         "-", // stream data to stdout
     ];
 
-    let yt = Command::new("yt-dlp")
-        .args(&ytdl_args)
+    let mut yt = Command::new("yt-dlp")
+        .args(ytdl_args)
         .stdin(Stdio::null())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::inherit())
+        .stderr(Stdio::piped())
+        .stdout(Stdio::piped())
         .spawn()?;
 
     // track info json (for metadata) is piped to stderr by design choice of yt-dlp
     // the actual track is streamed to stdout
-    let mut stderr = yt.stderr.take();
+    let stderr = yt.stderr.take();
     let (returned_stderr, value) = task::spawn_blocking(move || {
-        let mut s = stderr.take().unwrap();
+        let mut s = stderr.unwrap();
         let out: SongbirdResult<Value> = {
-            let o_vec = vec![];
-            let mut serde_read = Vec::new();
-            s.read(&mut serde_read);
+            let mut o_vec = vec![];
+            let mut serde_read = BufReader::new(s.by_ref());
 
-            if serde_read.len() > 0 {
-                serde_json::from_slice(&o_vec[..serde_read.len()]).map_err(|err| SongbirdError::Json {
+            if let Ok(len) = serde_read.read_until(NEWLINE_BYTE, &mut o_vec) {
+                serde_json::from_slice(&o_vec[..len]).map_err(|err| SongbirdError::Json {
                     error: err,
                     parsed_text: std::str::from_utf8(&o_vec).unwrap_or_default().to_string(),
                 })
@@ -163,8 +159,7 @@ pub async fn ytdl(uri: &str) -> Result<Child, SongbirdError> {
     let metadata = Metadata::from_ytdl_output(value?);
     yt.stderr = Some(returned_stderr);
 
-
-    Ok(yt)
+    Ok((yt, metadata))
 }
 
 async fn _ytdl_metadata(uri: &str) -> SongbirdResult<Metadata> {
@@ -174,13 +169,14 @@ async fn _ytdl_metadata(uri: &str) -> SongbirdResult<Metadata> {
         "infinite",        // infinite number of download retries
         "--no-playlist",   // only download the video if URL also has playlist info
         "--ignore-config", // disable all configuration files for a yt-dlp run
+        "--no-warnings",   // don't print out warnings
         uri,
         "-o",
         "-", // stream data to stdout
     ];
 
     let youtube_dl_output = TokioCommand::new("yt-dlp")
-        .args(&ytdl_args)
+        .args(ytdl_args)
         .stdin(Stdio::null())
         .output()
         .await?;
@@ -188,7 +184,7 @@ async fn _ytdl_metadata(uri: &str) -> SongbirdResult<Metadata> {
     let o_vec = youtube_dl_output.stderr;
 
     // read until newline byte
-    let end = (&o_vec)
+    let end = (o_vec)
         .iter()
         .position(|el| *el == NEWLINE_BYTE)
         .unwrap_or(o_vec.len());

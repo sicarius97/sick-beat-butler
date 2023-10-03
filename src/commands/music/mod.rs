@@ -2,6 +2,7 @@ mod embeds;
 pub mod queue;
 pub mod pause;
 pub mod resume;
+pub mod join;
 mod handlers;
 
 use songbird::input::Metadata;

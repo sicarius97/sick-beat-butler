@@ -30,10 +30,9 @@ use serenity::prelude::*;
 use tracing::{error, info};
 
 use crate::commands::owner::*;
-use crate::commands::music::queue::*;
-use crate::commands::music::resume::*;
-use crate::commands::music::pause::*;
+use crate::commands::music::{join::*, resume::*, pause::*, queue::*};
 use crate::commands::stonks::*;
+use crate::commands::league::*;
 
 pub struct ShardManagerContainer;
 
@@ -57,7 +56,7 @@ impl EventHandler for Handler {
 #[group]
 #[commands(
     join, bust, stock, mute, unmute, deafen, undeafen, stop, leave, queue, ping, skip, quit,
-    pause, resume
+    pause, resume, league
 )]
 struct General;
 
@@ -94,7 +93,7 @@ async fn main() {
         StandardFramework::new().configure(|c| c.prefix("$")).group(&GENERAL_GROUP);
 
     // Set gateway intents
-    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT;
+    let intents = GatewayIntents::non_privileged() | GatewayIntents::MESSAGE_CONTENT | GatewayIntents::GUILD_VOICE_STATES | GatewayIntents::GUILD_MESSAGES | GatewayIntents::DIRECT_MESSAGES;
 
     let mut client = Client::builder(&token, intents)
         .framework(framework)
