@@ -17,9 +17,11 @@ use tracing::{error, info};
 use crate::types::ButlerResult;
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SummonerResult {
     id: String,
     name: String,
+    profile_icon_id: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -31,7 +33,6 @@ struct LeagueResult {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LeagueData {
-    summoner_name: String,
     queue_type: String,
     tier: String,
     rank: String,
@@ -50,8 +51,6 @@ async fn get_summoner_data(name: &str) -> Option<SummonerResult> {
         },
     };
     let url = format!("https://na1.api.riotgames.com/lol/summoner/v4/summoners/by-name/{}?api_key={}", name, api_key);
-
-    info!("Fetching summoner data from: {}", url);
 
     let _ = match reqwest::get(&url).await {
         Ok(res) => {
@@ -123,7 +122,6 @@ async fn league(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
 
     let summoner_data = match get_summoner_data(&summoner).await {
         Some(summoner) => {
-            info!("{:?}", summoner);
             summoner
         },
         None => {
@@ -140,7 +138,23 @@ async fn league(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     if summoner.to_lowercase() == summoner_data.name.to_lowercase() {
         let _ = match get_league_data(&summoner_data.id).await {
             Some(league) => {
-                info!("{:?}", league);
+                check_msg(
+                    msg.channel_id
+                        .send_message(&ctx.http, |m| {
+                            m.embed(|e| {
+                                e.title(format!("{}'s League Rank(s)", summoner_data.name));
+                                e.thumbnail(format!("http://ddragon.leagueoflegends.com/cdn/13.19.1/img/profileicon/{}.png", summoner_data.profile_icon_id));
+                                league.league_result.iter().for_each(|data| {
+                                    let queue_type = data.queue_type.replace("_", " ");
+                                    e.field(queue_type, format!("{} {}", data.tier, data.rank), false);
+                                    e.field("STATS", format!("{} LP\n{}W {}L", data.league_points, data.wins, data.losses), false);
+                                });
+                                e
+                            });
+                            m
+                        })
+                        .await,
+                );
             },
             None => {
                 check_msg(
@@ -154,13 +168,5 @@ async fn league(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
         };
     }
 
-
-    check_msg(
-        msg.channel_id
-            .say(&ctx.http, "Test successful")
-            .await,
-    );
-
     Ok(())
 }
-
